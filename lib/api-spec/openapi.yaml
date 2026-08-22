@@ -1,0 +1,590 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: B2C Storefront Test Automation Dashboard API
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: runs
+    description: Test run operations
+  - name: results
+    description: Test result operations
+  - name: metrics
+    description: Performance metric operations
+  - name: dashboard
+    description: Dashboard summary operations
+
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      description: Returns server health status
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+  /runs:
+    get:
+      operationId: listRuns
+      tags: [runs]
+      summary: List test runs
+      description: Returns all test runs for the authenticated user
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, running, completed, failed]
+        - name: environment
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: number
+            default: 50
+        - name: offset
+          in: query
+          schema:
+            type: number
+            default: 0
+      responses:
+        "200":
+          description: List of test runs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TestRun"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    post:
+      operationId: createRun
+      tags: [runs]
+      summary: Create a test run
+      description: Queues a new test run for the given URL and module selection
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TestRunInput"
+      responses:
+        "201":
+          description: Test run created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TestRun"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /runs/{id}:
+    get:
+      operationId: getRun
+      tags: [runs]
+      summary: Get test run
+      description: Returns a single test run with summary
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Test run detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TestRun"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+    delete:
+      operationId: deleteRun
+      tags: [runs]
+      summary: Delete test run
+      description: Deletes a test run and all associated results
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /runs/{id}/results:
+    get:
+      operationId: getRunResults
+      tags: [results]
+      summary: Get test results for a run
+      description: Returns all test scenario results for a given run
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of test results
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TestResult"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /runs/{id}/metrics:
+    get:
+      operationId: getRunMetrics
+      tags: [metrics]
+      summary: Get performance metrics for a run
+      description: Returns performance metrics (TTFB, FCP, LCP, load time) for a given run
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of performance metrics
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PerformanceMetric"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /dashboard/summary:
+    get:
+      operationId: getDashboardSummary
+      tags: [dashboard]
+      summary: Dashboard summary
+      description: Returns overall stats including total runs, pass rate, recent activity, and module-level breakdown
+      responses:
+        "200":
+          description: Dashboard summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /performance/trends:
+    get:
+      operationId: getPerformanceTrends
+      tags: [metrics]
+      summary: Performance trends
+      description: Returns time-series performance data for Home, PLP, and PDP across historical runs
+      parameters:
+        - name: url
+          in: query
+          schema:
+            type: string
+        - name: pageType
+          in: query
+          schema:
+            type: string
+            enum: [home, plp, pdp]
+        - name: limit
+          in: query
+          schema:
+            type: number
+            default: 30
+      responses:
+        "200":
+          description: Performance trends
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PerformanceTrend"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /runs/compare:
+    get:
+      operationId: compareRuns
+      tags: [runs]
+      summary: Compare two test runs
+      description: Returns a side-by-side comparison of two test runs
+      parameters:
+        - name: runA
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: runB
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Run comparison
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RunComparison"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error
+
+    TestRun:
+      type: object
+      properties:
+        id:
+          type: string
+        url:
+          type: string
+        environmentTag:
+          type: ["string", "null"]
+        status:
+          type: string
+          enum: [pending, running, completed, failed]
+        moduleSelection:
+          type: array
+          items:
+            type: string
+        triggeredBy:
+          type: ["string", "null"]
+        startedAt:
+          type: ["string", "null"]
+        completedAt:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+        totalScenarios:
+          type: ["integer", "null"]
+        passedScenarios:
+          type: ["integer", "null"]
+        failedScenarios:
+          type: ["integer", "null"]
+        passRate:
+          type: ["number", "null"]
+        durationMs:
+          type: ["integer", "null"]
+      required:
+        - id
+        - url
+        - status
+        - moduleSelection
+        - createdAt
+
+    TestRunInput:
+      type: object
+      properties:
+        url:
+          type: string
+          minLength: 1
+        environmentTag:
+          type: string
+        moduleSelection:
+          type: array
+          items:
+            type: string
+          minItems: 1
+        testUsername:
+          type: string
+        testPassword:
+          type: string
+      required:
+        - url
+        - moduleSelection
+
+    TestResult:
+      type: object
+      properties:
+        id:
+          type: string
+        runId:
+          type: string
+        module:
+          type: string
+          enum: [home, navigation, search, category, plp, pdp, cart, checkout]
+        scenario:
+          type: string
+        testId:
+          type: string
+        status:
+          type: string
+          enum: [pass, fail, warning, skipped]
+        durationMs:
+          type: ["integer", "null"]
+        errorMessage:
+          type: ["string", "null"]
+        screenshotUrl:
+          type: ["string", "null"]
+        apisCalled:
+          type: array
+          items:
+            type: string
+        productName:
+          type: ["string", "null"]
+        productCode:
+          type: ["string", "null"]
+        createdAt:
+          type: string
+      required:
+        - id
+        - runId
+        - module
+        - scenario
+        - testId
+        - status
+        - createdAt
+
+    PerformanceMetric:
+      type: object
+      properties:
+        id:
+          type: string
+        runId:
+          type: string
+        pageType:
+          type: string
+          enum: [home, plp, pdp]
+        ttfbMs:
+          type: ["integer", "null"]
+        fcpMs:
+          type: ["integer", "null"]
+        lcpMs:
+          type: ["integer", "null"]
+        loadTimeMs:
+          type: ["integer", "null"]
+        pageWeightKb:
+          type: ["integer", "null"]
+        networkRequests:
+          type: ["integer", "null"]
+        createdAt:
+          type: string
+      required:
+        - id
+        - runId
+        - pageType
+        - createdAt
+
+    DashboardSummary:
+      type: object
+      properties:
+        totalRuns:
+          type: number
+        totalRunsThisWeek:
+          type: number
+        overallPassRate:
+          type: number
+        averageDurationMs:
+          type: ["integer", "null"]
+        recentRuns:
+          type: array
+          items:
+            $ref: "#/components/schemas/TestRun"
+        moduleBreakdown:
+          type: array
+          items:
+            $ref: "#/components/schemas/ModuleBreakdown"
+        performanceSnapshot:
+          type: array
+          items:
+            $ref: "#/components/schemas/PerformanceSnapshot"
+      required:
+        - totalRuns
+        - totalRunsThisWeek
+        - overallPassRate
+        - recentRuns
+        - moduleBreakdown
+        - performanceSnapshot
+
+    ModuleBreakdown:
+      type: object
+      properties:
+        module:
+          type: string
+        passRate:
+          type: number
+        totalScenarios:
+          type: number
+        passedScenarios:
+          type: number
+        failedScenarios:
+          type: number
+      required:
+        - module
+        - passRate
+        - totalScenarios
+        - passedScenarios
+        - failedScenarios
+
+    PerformanceSnapshot:
+      type: object
+      properties:
+        pageType:
+          type: string
+          enum: [home, plp, pdp]
+        avgLoadTimeMs:
+          type: ["integer", "null"]
+        avgLcpMs:
+          type: ["integer", "null"]
+        avgTtfbMs:
+          type: ["integer", "null"]
+        threshold:
+          type: number
+        breachCount:
+          type: number
+      required:
+        - pageType
+        - threshold
+        - breachCount
+
+    PerformanceTrend:
+      type: object
+      properties:
+        runId:
+          type: string
+        runAt:
+          type: string
+        pageType:
+          type: string
+          enum: [home, plp, pdp]
+        ttfbMs:
+          type: ["integer", "null"]
+        fcpMs:
+          type: ["integer", "null"]
+        lcpMs:
+          type: ["integer", "null"]
+        loadTimeMs:
+          type: ["integer", "null"]
+        url:
+          type: string
+      required:
+        - runId
+        - runAt
+        - pageType
+        - url
+
+    RunComparison:
+      type: object
+      properties:
+        runA:
+          $ref: "#/components/schemas/TestRun"
+        runB:
+          $ref: "#/components/schemas/TestRun"
+        resultsA:
+          type: array
+          items:
+            $ref: "#/components/schemas/TestResult"
+        resultsB:
+          type: array
+          items:
+            $ref: "#/components/schemas/TestResult"
+        metricsA:
+          type: array
+          items:
+            $ref: "#/components/schemas/PerformanceMetric"
+        metricsB:
+          type: array
+          items:
+            $ref: "#/components/schemas/PerformanceMetric"
+        improvements:
+          type: array
+          items:
+            type: string
+        regressions:
+          type: array
+          items:
+            type: string
+      required:
+        - runA
+        - runB
+        - resultsA
+        - resultsB
+        - metricsA
+        - metricsB
+        - improvements
+        - regressions

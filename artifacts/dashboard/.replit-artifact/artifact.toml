@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Hybris Test Automation Dashboard"
+description = "A web-based test automation and performance monitoring dashboard for SAP Hybris B2C e-commerce storefronts. QA engineers enter a storefront URL, trigger automated sanity and performance tests across 10 page types (Home, Login, Navigation, Search, Category, Filters, PLP, PDP, Cart, Checkout), and view interactive results with pass/fail status, performance trends, and drill-down details. Secured with Supabase Auth (email/password and GitHub OAuth)."
+version = "1.0.0"
+id = "artifacts/dashboard"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 23183
+
+[services.development]
+run = "pnpm --filter @workspace/dashboard run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/dashboard", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/dashboard/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "23183"
+BASE_PATH = "/"
